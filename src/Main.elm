@@ -1,7 +1,10 @@
 module Main exposing (Flags, Model, ModelError, ModelResult, decodeFlags, init, main)
 
 import Browser
-import Html
+import Chart as C
+import Chart.Attributes as CA
+import Html exposing (div, output, text, textarea)
+import Html.Attributes exposing (class, id, placeholder)
 import Json.Decode as JD
 
 
@@ -67,13 +70,97 @@ update msg modelResult =
                     ( Ok model, Cmd.none )
 
 
+type alias Point =
+    { x : Float
+    , y : Float
+    }
+
+
+type alias Colour =
+    String
+
+
+red : Colour
+red =
+    "#de4949"
+
+
+green : Colour
+green =
+    "#30b06e"
+
+
+yellow : Colour
+yellow =
+    "#ffb937"
+
+
+blue : Colour
+blue =
+    "#3352e1"
+
+
+magenta : Colour
+magenta =
+    "#533354"
+
+
+cyan : Colour
+cyan =
+    "#5a7d8b"
+
+
+white : Colour
+white =
+    "#eeeeee"
+
+
 view modelResult =
     case modelResult of
         Err e ->
             Html.text e
 
         Ok model ->
-            Html.text "TODO"
+            div [ class "responsive-two-column-grid full-h" ]
+                [ div [ class "input-wrapper full-h" ]
+                    [ textarea [ id "input", placeholder "" ] []
+                    ]
+                , div [ class "output-wrapper full-h" ]
+                    [ output [ id "output" ]
+                        [ let
+                            data =
+                                [ Point 1 2
+                                , Point 3 4
+                                , Point 5 5.5
+                                , Point 2 1
+                                , Point 4 3
+                                , Point 6 5.5
+                                , Point 7 2
+                                , Point 8 4
+                                , Point 9 5.5
+                                , Point 10 12
+                                , Point 11 14
+                                , Point 12 15.5
+                                ]
+                          in
+                          C.chart
+                            [ CA.height 300
+                            , CA.width 300
+                            ]
+                            [ C.grid
+                                [ CA.color white
+                                ]
+                            , C.yTicks [ CA.color white ]
+                            , C.xLabels [ CA.color cyan ]
+                            , C.yLabels [ CA.color cyan ]
+                            , C.series .x
+                                [ C.interpolated .y [ CA.color green ] [ CA.circle ]
+                                ]
+                                data
+                            ]
+                        ]
+                    ]
+                ]
 
 
 subscriptions _ =
