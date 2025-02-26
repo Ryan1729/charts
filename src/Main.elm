@@ -4,8 +4,11 @@ import Browser
 import Chart as C
 import Chart.Attributes as CA
 import Html exposing (div, output, text, textarea)
-import Html.Attributes exposing (class, id, placeholder)
+import Html.Attributes exposing (class, id, placeholder, value)
+import Html.Events exposing (onInput)
 import Json.Decode as JD
+import Parse exposing (parse)
+import Types exposing (Point)
 
 
 main =
@@ -18,7 +21,8 @@ main =
 
 
 type alias Model =
-    {}
+    { input : String
+    }
 
 
 type alias ModelError =
@@ -44,7 +48,7 @@ init flags =
     -- for that.
     ( case JD.decodeValue decodeFlags flags of
         Ok {} ->
-            Ok {}
+            Ok { input = "" }
 
         Err error ->
             "Error decoding flags: "
@@ -56,6 +60,7 @@ init flags =
 
 type Msg
     = NoOp
+    | Input String
 
 
 update : Msg -> ModelResult -> ( ModelResult, Cmd Msg )
@@ -69,11 +74,8 @@ update msg modelResult =
                 NoOp ->
                     ( Ok model, Cmd.none )
 
-
-type alias Point =
-    { x : Float
-    , y : Float
-    }
+                Input input ->
+                    ( Ok { model | input = input }, Cmd.none )
 
 
 type alias Colour =
@@ -120,44 +122,37 @@ view modelResult =
         Err e ->
             Html.text e
 
-        Ok model ->
+        Ok { input } ->
+            let
+                result =
+                    parse input
+            in
             div [ class "responsive-two-column-grid full-h" ]
                 [ div [ class "input-wrapper full-h" ]
-                    [ textarea [ id "input", placeholder "" ] []
+                    [ textarea [ id "input", placeholder "", value input, onInput Input ] []
                     ]
                 , div [ class "output-wrapper full-h" ]
                     [ output [ id "output" ]
-                        [ let
-                            data =
-                                [ Point 1 2
-                                , Point 3 4
-                                , Point 5 5.5
-                                , Point 2 1
-                                , Point 4 3
-                                , Point 6 5.5
-                                , Point 7 2
-                                , Point 8 4
-                                , Point 9 5.5
-                                , Point 10 12
-                                , Point 11 14
-                                , Point 12 15.5
-                                ]
-                          in
-                          C.chart
-                            [ CA.height 300
-                            , CA.width 300
-                            ]
-                            [ C.grid
-                                [ CA.color white
-                                ]
-                            , C.yTicks [ CA.color white ]
-                            , C.xLabels [ CA.color cyan ]
-                            , C.yLabels [ CA.color cyan ]
-                            , C.series .x
-                                [ C.interpolated .y [ CA.color green ] [ CA.circle ]
-                                ]
-                                data
-                            ]
+                        [ case result of
+                            Err error ->
+                                text error
+
+                            Ok data ->
+                                C.chart
+                                    [ CA.height 300
+                                    , CA.width 300
+                                    ]
+                                    [ C.grid
+                                        [ CA.color white
+                                        ]
+                                    , C.yTicks [ CA.color white ]
+                                    , C.xLabels [ CA.color cyan ]
+                                    , C.yLabels [ CA.color cyan ]
+                                    , C.series .x
+                                        [ C.interpolated .y [ CA.color green ] [ CA.circle ]
+                                        ]
+                                        data
+                                    ]
                         ]
                     ]
                 ]
