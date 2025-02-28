@@ -20,6 +20,12 @@ parse input =
     let
         acc =
             String.foldl parseStep accInit input
+
+        extractOutput : Acc -> Output
+        extractOutput =
+            .output
+                >> List.sortBy .x
+                >> Ok
     in
     case acc.kind of
         ErrorOut error ->
@@ -27,19 +33,22 @@ parse input =
 
         ExpectDigit last ->
             appendNumber last acc
-                |> .output
-                |> List.reverse
-                |> Ok
+                |> extractOutput
+
+        ExpectY xNumber yNumber ->
+            appendPoint xNumber yNumber acc
+                |> extractOutput
 
         _ ->
-            acc.output
-                |> List.reverse
-                |> Ok
+            acc
+                |> extractOutput
 
 
 type Kind
     = Initial
     | ExpectDigit Int
+    | ExpectX Int
+    | ExpectY Int Int
     | ErrorOut Error
 
 
@@ -56,8 +65,8 @@ accInit =
     }
 
 
-setKind : Acc -> Kind -> Acc
-setKind acc kind =
+setKind : Kind -> Acc -> Acc
+setKind kind acc =
     { acc | kind = kind }
 
 
@@ -66,19 +75,46 @@ parseStep char acc =
     case acc.kind of
         Initial ->
             if Char.isDigit char then
-                charToIntOr0 char
-                    |> ExpectDigit
-                    |> setKind acc
+                acc
+                    |> setKind (charToIntOr0 char |> ExpectDigit)
+
+            else
+                case char of
+                    '(' ->
+                        acc
+                            |> setKind (ExpectX 0)
+
+                    _ ->
+                        acc
+
+        ExpectX number ->
+            if Char.isDigit char then
+                acc
+                    |> setKind (ExpectX (number * 10 + charToIntOr0 char))
 
             else
                 case char of
                     _ ->
                         acc
+                            |> setKind (ExpectY number 0)
+
+        ExpectY xNumber yNumber ->
+            if Char.isDigit char then
+                acc
+                    |> setKind (ExpectY xNumber (yNumber * 10 + charToIntOr0 char))
+
+            else
+                case char of
+                    ')' ->
+                        appendPoint xNumber yNumber acc
+
+                    _ ->
+                        acc
 
         ExpectDigit number ->
             if Char.isDigit char then
-                ExpectDigit (number * 10 + charToIntOr0 char)
-                    |> setKind acc
+                acc
+                    |> setKind (ExpectDigit (number * 10 + charToIntOr0 char))
 
             else
                 case char of
@@ -94,6 +130,13 @@ appendNumber number acc =
       -- TODO Calling List.length here is kinda dumb perfwise. Storing
       -- the length as an int would be a Big-O improvement
         | output = Point (List.length acc.output |> toFloat) (toFloat number) :: acc.output
+        , kind = Initial
+    }
+
+
+appendPoint xNumber yNumber acc =
+    { acc
+        | output = Point (toFloat xNumber) (toFloat yNumber) :: acc.output
         , kind = Initial
     }
 
