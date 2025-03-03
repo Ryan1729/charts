@@ -44,11 +44,72 @@ parse input =
                 |> extractOutput
 
 
+type alias FloatAcc =
+    { whole : String
+    , frac : String -- Gotta be string to account for zero in 1.01
+    , sawPoint : Bool
+    }
+
+
+floatAccInit : FloatAcc
+floatAccInit =
+    { whole = ""
+    , frac = ""
+    , sawPoint = False
+    }
+
+
+accumChar : Char -> FloatAcc -> FloatAcc
+accumChar char { whole, frac, sawPoint } =
+    if char == '.' then
+        { whole = whole
+        , sawPoint = True
+        , frac = frac
+        }
+
+    else if sawPoint then
+        { whole = whole
+        , sawPoint = sawPoint
+        , frac = frac ++ String.fromChar char
+        }
+
+    else
+        { whole = whole ++ String.fromChar char
+        , sawPoint = sawPoint
+        , frac = frac
+        }
+
+
+isFloatChar : Char -> Bool
+isFloatChar char =
+    Char.isDigit char || char == '.'
+
+
+extractFloat : FloatAcc -> Float
+extractFloat { whole, frac } =
+    let
+        w =
+            if whole == "" then
+                "0"
+
+            else
+                whole
+
+        f =
+            if frac == "" then
+                "0"
+
+            else
+                frac
+    in
+    String.toFloat (w ++ "." ++ f) |> Maybe.withDefault 0.0
+
+
 type Kind
     = Initial
-    | ExpectDigit Int
-    | ExpectX Int
-    | ExpectY Int Int
+    | ExpectDigit FloatAcc
+    | ExpectX FloatAcc
+    | ExpectY FloatAcc FloatAcc
     | ErrorOut Error
 
 
@@ -74,47 +135,47 @@ parseStep : Char -> Acc -> Acc
 parseStep char acc =
     case acc.kind of
         Initial ->
-            if Char.isDigit char then
+            if isFloatChar char then
                 acc
-                    |> setKind (charToIntOr0 char |> ExpectDigit)
+                    |> setKind (accumChar char floatAccInit |> ExpectDigit)
 
             else
                 case char of
                     '(' ->
                         acc
-                            |> setKind (ExpectX 0)
+                            |> setKind (ExpectX floatAccInit)
 
                     _ ->
                         acc
 
-        ExpectX number ->
-            if Char.isDigit char then
+        ExpectX x ->
+            if isFloatChar char then
                 acc
-                    |> setKind (ExpectX (number * 10 + charToIntOr0 char))
+                    |> setKind (ExpectX (accumChar char x))
 
             else
                 case char of
                     _ ->
                         acc
-                            |> setKind (ExpectY number 0)
+                            |> setKind (ExpectY x floatAccInit)
 
-        ExpectY xNumber yNumber ->
-            if Char.isDigit char then
+        ExpectY x y ->
+            if isFloatChar char then
                 acc
-                    |> setKind (ExpectY xNumber (yNumber * 10 + charToIntOr0 char))
+                    |> setKind (ExpectY x (accumChar char y))
 
             else
                 case char of
                     ')' ->
-                        appendPoint xNumber yNumber acc
+                        appendPoint x y acc
 
                     _ ->
                         acc
 
         ExpectDigit number ->
-            if Char.isDigit char then
+            if isFloatChar char then
                 acc
-                    |> setKind (ExpectDigit (number * 10 + charToIntOr0 char))
+                    |> setKind (ExpectDigit (accumChar char number))
 
             else
                 case char of
@@ -125,18 +186,19 @@ parseStep char acc =
             acc
 
 
+appendNumber : FloatAcc -> Acc -> Acc
 appendNumber number acc =
     { acc
       -- TODO Calling List.length here is kinda dumb perfwise. Storing
       -- the length as an int would be a Big-O improvement
-        | output = Point (List.length acc.output |> toFloat) (toFloat number) :: acc.output
+        | output = Point (List.length acc.output |> toFloat) (extractFloat number) :: acc.output
         , kind = Initial
     }
 
 
 appendPoint xNumber yNumber acc =
     { acc
-        | output = Point (toFloat xNumber) (toFloat yNumber) :: acc.output
+        | output = Point (extractFloat xNumber) (extractFloat yNumber) :: acc.output
         , kind = Initial
     }
 
