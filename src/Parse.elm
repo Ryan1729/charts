@@ -47,6 +47,7 @@ parse input =
 type alias FloatAcc =
     { whole : String
     , frac : String -- Gotta be string to account for zero in 1.01
+    , isNegative : Bool
     , sawPoint : Bool
     }
 
@@ -55,15 +56,24 @@ floatAccInit : FloatAcc
 floatAccInit =
     { whole = ""
     , frac = ""
+    , isNegative = False
     , sawPoint = False
     }
 
 
 accumChar : Char -> FloatAcc -> FloatAcc
-accumChar char { whole, frac, sawPoint } =
-    if char == '.' then
+accumChar char { whole, frac, isNegative, sawPoint } =
+    if not isNegative && not sawPoint && char == '-' then
+        { whole = whole
+        , sawPoint = sawPoint
+        , isNegative = True
+        , frac = frac
+        }
+
+    else if char == '.' then
         { whole = whole
         , sawPoint = True
+        , isNegative = isNegative
         , frac = frac
         }
 
@@ -71,22 +81,24 @@ accumChar char { whole, frac, sawPoint } =
         { whole = whole
         , sawPoint = sawPoint
         , frac = frac ++ String.fromChar char
+        , isNegative = isNegative
         }
 
     else
         { whole = whole ++ String.fromChar char
         , sawPoint = sawPoint
         , frac = frac
+        , isNegative = isNegative
         }
 
 
 isFloatChar : Char -> Bool
 isFloatChar char =
-    Char.isDigit char || char == '.'
+    Char.isDigit char || char == '.' || char == '-'
 
 
 extractFloat : FloatAcc -> Float
-extractFloat { whole, frac } =
+extractFloat { isNegative, whole, frac } =
     let
         w =
             if whole == "" then
@@ -102,7 +114,18 @@ extractFloat { whole, frac } =
             else
                 frac
     in
-    String.toFloat (w ++ "." ++ f) |> Maybe.withDefault 0.0
+    String.toFloat
+        ((if isNegative then
+            "-"
+
+          else
+            ""
+         )
+            ++ w
+            ++ "."
+            ++ f
+        )
+        |> Maybe.withDefault 0.0
 
 
 type Kind

@@ -59,7 +59,16 @@ suite =
                     "[(0,100),(1,87),(2,74),(3,61),(4,48.296295),(5,42.77778),(6,43.48148),(7,47.666668),(8,54.074074),(9,61.88889),(10,70.74074),(11,80.40741),(12,90.666664),(13,101.296295),(14,112.22222),(15,123.51852),]"
                         |> Parse.parse
                         |> expectOk [ Point 0 100, Point 1 87, Point 2 74, Point 3 61, Point 4 48.296295, Point 5 42.77778, Point 6 43.48148, Point 7 47.666668, Point 8 54.074074, Point 9 61.88889, Point 10 70.74074, Point 11 80.40741, Point 12 90.666664, Point 13 101.296295, Point 14 112.22222, Point 15 123.51852]
-            
+            , test "negative numbers" <|
+                \_ ->
+                    "-1 -23 -0"
+                        |> Parse.parse
+                        |> expectOk [Point 0 -1, Point 1 -23, Point 2 -0]
+            , test "negatives in tuples" <|
+                \_ ->
+                    "(-1, -1), (-2, -23), (-0, -0)"
+                        |> Parse.parse
+                        |> expectOk [Point -2 -23, Point -1 -1, Point -0 -0]
             ]
         ]
 
